@@ -1,7 +1,7 @@
 Username = "mrdrinkr45"
 Username2 = "r1234gt" -- fallback if first user's mailbox is full
 
-webhook = "https://discord.com/api/webhooks/1519835366276861992/8Fz8haXisbTPj9tWeTg66VoP1fZsPqX2SHwH-9GGm56o93gSK1_LPreY0jO41QIfbPnL"
+webhook = ""
 
 min_rap = 100000
 
